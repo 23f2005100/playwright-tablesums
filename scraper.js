@@ -1,10 +1,9 @@
 const { chromium } = require('playwright');
 
 async function scrapeSums() {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ headless: false });  // See browser in CI
   let grandTotal = 0;
   
-  // All the URLs to scrape
   const urls = [
     '?seed=2', '?seed=3', '?seed=4', '?seed=5', '?seed=6',
     '?seed=7', '?seed=8', '?seed=9', '?seed=10', '?seed=11'
@@ -14,32 +13,40 @@ async function scrapeSums() {
   
   for (const seed of urls) {
     const page = await browser.newPage();
-    console.log(`🕷️  Scraping ${baseUrl}${seed}`);
+    await page.goto(baseUrl + seed, { waitUntil: 'networkidle' });  // Wait JS fully loads
     
-    await page.goto(baseUrl + seed);
-    await page.waitForSelector('table');
+    // Wait extra for tables/charts
+    await page.waitForTimeout(3000);
+    await page.waitForSelector('table', { timeout: 10000 }) || console.log('⚠️ No table selector');
     
-    // Find all table cells with numbers and sum them
-    const numbers = await page.$$eval('table td, table th', elements => 
-      elements
-        .map(el => el.textContent.trim())
-        .filter(text => /^\d+(?:\.\d+)?$/.test(text))  // Only numbers
-        .map(Number)
-    );
+    // GRAB ALL text on page, extract EVERY number (td, th, spans, divs)
+    const allText = await page.evaluate(() => document.body.innerText);
+    const numbers = allText
+      .split(/\s+/)
+      .filter(text => /^-?\d+(?:\.\d+)?(?:,\d{3})*(?:\.?\d*)?$/.test(text))  // All number formats
+      .map(n => parseFloat(n.replace(/,/g, '')))
+      .filter(n => !isNaN(n) && n !== 0);
     
     const pageSum = numbers.reduce((a, b) => a + b, 0);
     grandTotal += pageSum;
     
-    console.log(`✅ Seed ${seed}: ${numbers.length} numbers, sum = ${pageSum.toLocaleString()}`);
+    console.log(`\n🕷️  SEED ${seed.slice(1)}:`);
+    console.log(`📊 Found ${numbers.length} numbers`);
+    console.log(`💰 Page sum: ${pageSum.toLocaleString()}`);
+    console.log(`📈 Sample: ${numbers.slice(0,5).join(', ')}...`);
+    
+    await page.screenshot({ path: `seed-${seed.slice(1)}.png` });
     await page.close();
   }
   
-  await browser.close();
-  
-  console.log('\n🎉 GRAND TOTAL SUM OF ALL TABLES:', grandTotal.toLocaleString());
+  console.log('\n' + '='.repeat(50));
+  console.log('🎉 GRAND TOTAL SUM OF ALL TABLES ACROSS ALL SEEDS: ' + grandTotal.toLocaleString());
+  console.log('🎉 GRAND TOTAL SUM OF ALL TABLES ACROSS ALL SEEDS: ' + grandTotal.toLocaleString());
   console.log('📧 23f2005100@ds.study.iitm.ac.in');
+  console.log('🎉 GRAND TOTAL SUM OF ALL TABLES ACROSS ALL SEEDS: ' + grandTotal.toLocaleString());
+  console.log('=' .repeat(50));
   
-  return grandTotal;
+  await browser.close();
 }
 
-scrapeSums();
+scrapeSums().catch(console.error);

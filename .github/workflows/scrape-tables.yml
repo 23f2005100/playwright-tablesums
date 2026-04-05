@@ -1,0 +1,30 @@
+name: Table Sum QA - 23f2005100@ds.study.iitm.ac.in
+
+on: 
+  push:
+  workflow_dispatch:  # Manual trigger button
+
+jobs:
+  scrape-tables:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🟢 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: 📦 Install dependencies
+      run: npm install
+      
+    - name: 🐛 Install Playwright browsers
+      run: npx playwright install --with-deps
+      
+    - name: 🎯 Scrape and sum all tables - 23f2005100@ds.study.iitm.ac.in
+      run: npm run scrape
+      
+    - name: 📊 Show final result
+      run: echo "✅ Workflow completed! Check logs above for GRAND TOTAL"
